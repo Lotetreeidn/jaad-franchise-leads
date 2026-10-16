@@ -199,7 +199,7 @@ function importForm() {
     const csv = await f.text();
     const r = await act(() => api("POST", "/api/leads/import", { csv, segment: seg.value }));
     if (r) { toast(`${r.inserted} baru, ${r.duplicates} duplikat, ${r.invalid} tidak valid, ${r.suppressed} diblokir.`); viewLeads(); }
-  } }, h("p", { class: "muted" }, "Kolom: segment, name, country, city, website, email, phone, notes. Wajib: name dan country (2 huruf). Cocok untuk daftar peserta pameran franchise, member asosiasi, atau daftar mall."),
+  } }, h("p", { class: "muted" }, "Kolom: segment, name, country, city, website, email, phone, notes, outlet_count, brand_count. Wajib: name dan country (2 huruf). Cocok untuk daftar peserta pameran franchise, member asosiasi, atau daftar mall."),
   h("label", {}, "Segmen default", seg), h("label", {}, "File", file), h("div", {}, h("button", { class: "primary", type: "submit" }, "Import"))));
 }
 

@@ -293,3 +293,17 @@ test("the Pages cron endpoint needs the shared secret and then runs the opt-in j
   const noSecret = await world();
   assert.equal((await noSecret.api("POST", "/api/cron", undefined, { auth: false, headers: { authorization: "Bearer " } })).status, 401);
 });
+
+test("researched leads keep outlet and brand counts from CSV import and manual entry", async () => {
+  const w = await world();
+  await w.loginOk();
+  const csv = "segment,name,country,city,website,notes,outlet_count,brand_count\nMASTER_FRANCHISE,Gulf Brands Co,AE,Dubai,,[HOT] riset,40,6\n";
+  const r = await w.api("POST", "/api/leads/import", { csv, segment: "FNB_OPERATOR" });
+  assert.equal(r.data.inserted, 1);
+  const gulf = w.row("SELECT outlet_count, brand_count, quality_score FROM leads WHERE name = 'Gulf Brands Co'");
+  assert.equal(gulf.outlet_count, 40);
+  assert.equal(gulf.brand_count, 6);
+  assert.ok(gulf.quality_score >= 45, String(gulf.quality_score));
+  await w.api("POST", "/api/leads", { segment: "FNB_OPERATOR", name: "Kopi Riset", country: "ID", outlet_count: 7, brand_count: 1 });
+  assert.equal(w.row("SELECT outlet_count FROM leads WHERE name = 'Kopi Riset'").outlet_count, 7);
+});

@@ -292,7 +292,7 @@ export function parseCsv(text: string): string[][] {
   return rows;
 }
 
-export const CSV_COLUMNS = ["segment", "name", "country", "city", "website", "email", "phone", "notes"];
+export const CSV_COLUMNS = ["segment", "name", "country", "city", "website", "email", "phone", "notes", "outlet_count", "brand_count"];
 
 export async function importCsv(db: D1Database, text: string, defaultSegment: Segment, now = Date.now()) {
   if (text.length > 400_000) throw new HttpError(413, "csv_too_large");
@@ -309,7 +309,11 @@ export async function importCsv(db: D1Database, text: string, defaultSegment: Se
     const country = get("country").toUpperCase();
     if (!get("name") || !/^[A-Z]{2}$/.test(country)) { result.invalid++; continue; }
     try {
-      const res = await insertLead(db, { segment, name: get("name"), country, city: get("city"), website: get("website") || null, source: "CSV", notes: get("notes") }, now);
+      const count = (col: string) => Math.max(0, Math.min(10_000, Math.round(Number(get(col)) || 0)));
+      const res = await insertLead(db, {
+        segment, name: get("name"), country, city: get("city"), website: get("website") || null, source: "CSV", notes: get("notes"),
+        outletCount: count("outlet_count"), brandCount: count("brand_count"),
+      }, now);
       if (res.status === "inserted") {
         result.inserted++;
         if (get("email")) await addContact(db, res.id, "EMAIL", get("email"), "csv import", now).catch(() => undefined);
