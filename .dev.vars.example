@@ -1,0 +1,8 @@
+# Copy to .dev.vars for local dev. In production set each with `npx wrangler secret put NAME`.
+OPERATOR_PASSWORD=
+SESSION_SECRET=
+# Optional, only for sending approved emails through your own Gmail:
+GMAIL_CLIENT_ID=
+GMAIL_CLIENT_SECRET=
+GMAIL_REFRESH_TOKEN=
+GMAIL_SENDER=
