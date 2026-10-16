@@ -70,7 +70,11 @@ route("POST", "/api/leads", async ({ request, env }) => {
   if (!/^[A-Z]{2}$/.test(country)) throw new HttpError(400, "invalid_country");
   const name = str(body.name, 200);
   if (!name) throw new HttpError(400, "invalid_name");
-  const res = await insertLead(env.DB, { segment: body.segment, name, country, city: str(body.city, 120), website: str(body.website, 300) || null, source: "MANUAL", notes: str(body.notes, 2000) });
+  const count = (v: unknown) => Math.max(0, Math.min(10_000, Math.round(Number(v) || 0)));
+  const res = await insertLead(env.DB, {
+    segment: body.segment, name, country, city: str(body.city, 120), website: str(body.website, 300) || null, source: "MANUAL", notes: str(body.notes, 2000),
+    outletCount: count(body.outlet_count), brandCount: count(body.brand_count),
+  });
   return json(res, res.status === "inserted" ? 201 : 200);
 });
 route("POST", "/api/leads/import", async ({ request, env }) => {

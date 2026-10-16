@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { candidatesFromOsm, overpassQuery } from "../src/discovery.ts";
+import { candidatesFromOsm, isExcludedCandidate, overpassQuery } from "../src/discovery.ts";
 import { buildMime, composeMessage, draftProblems, missingProfileFields, pickEmail } from "../src/outreach.ts";
 import { scoreLead } from "../src/scoring.ts";
 import { splitStatements } from "../src/schema.ts";
@@ -45,6 +45,22 @@ test("master franchise candidates need one operator running 2+ distinct brands",
   ];
   const c = candidatesFromOsm("MASTER_FRANCHISE", "AE", "Dubai", elements);
   assert.deepEqual(c.map(x => [x.name, x.brandCount]), [["Gulf Food Group", 2]]);
+});
+
+test("national chains and non-F&B venues are dropped from F&B discovery", () => {
+  const elements = [
+    el(1, { name: "KFC Dago", brand: "KFC", amenity: "fast_food" }),
+    el(2, { name: "KFC Riau", brand: "KFC", amenity: "fast_food" }),
+    el(3, { name: "J.Co Donuts'", amenity: "cafe", website: "https://jcodonuts.com" }),
+    el(4, { name: "Mixue Ice Cream & Tea", amenity: "ice_cream", website: "https://mixue.example" }),
+    el(5, { name: "Kantin Itenas", amenity: "fast_food", operator: "Universitas Itenas", website: "https://itenas.example" }),
+    el(6, { name: "Awan Coffee", amenity: "cafe", website: "https://awancoffee.example" }),
+    el(7, { name: "Domestic Kitchen", amenity: "restaurant", website: "https://domestic.example" }),
+  ];
+  const c = candidatesFromOsm("FNB_OPERATOR", "ID", "Kota Bandung", elements);
+  assert.deepEqual(c.map(x => x.name).sort(), ["Awan Coffee", "Domestic Kitchen"]);
+  assert.equal(isExcludedCandidate("McDonald's"), true);
+  assert.equal(isExcludedCandidate("Kopi Nako"), false);
 });
 
 test("property candidates need their own website", () => {

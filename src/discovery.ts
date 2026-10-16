@@ -112,6 +112,7 @@ export function candidatesFromOsm(segment: Segment, country: string, city: strin
     const brands = group.brands.size;
     if (segment === "MASTER_FRANCHISE" && !(key.startsWith("op:") && brands >= 2)) continue;
     if (segment === "FNB_OPERATOR" && outlets < 2 && !group.website) continue;
+    if (isExcludedCandidate(group.label, group.brands)) continue;
     const first = group.venues[0];
     out.push({
       segment,
@@ -126,6 +127,36 @@ export function candidatesFromOsm(segment: Segment, country: string, city: strin
     });
   }
   return rank(out).slice(0, max);
+}
+
+/**
+ * National/global chains and brand owners never take someone else's franchise, and venues inside campuses,
+ * hospitals or offices are not F&B companies. Both are dropped from F&B and master-franchise discovery.
+ */
+const BIG_CHAINS = [
+  "kfc", "mcdonalds", "mcd", "starbucks", "pizza hut", "phd", "dominos", "dominos pizza", "burger king", "wendys", "a w", "aw",
+  "hokben", "hoka hoka bento", "jco", "jco donuts", "jco donuts coffee", "dunkin", "dunkin donuts", "chatime", "mixue", "mixue ice cream tea",
+  "point coffee", "kopi kenangan", "janji jiwa", "kopi janji jiwa", "fore coffee", "tomoro coffee", "kopi soe", "excelso", "maxx coffee",
+  "the coffee bean tea leaf", "coffee bean", "tim hortons", "kopi tuku", "flash coffee", "family mart", "familymart", "indomaret", "alfamart",
+  "lawson", "circle k", "7 eleven", "richeese factory", "california fried chicken", "cfc", "texas chicken", "solaria", "es teh indonesia",
+  "gacoan", "mie gacoan", "sederhana", "rm sederhana", "bakmi gm", "yoshinoya", "marugame udon", "sushi tei", "breadtalk", "roti o", "rotio",
+  "subway", "carls jr", "popeyes", "auntie annes", "baskin robbins", "haagen dazs", "cold stone", "gong cha", "tealive", "zus coffee",
+  "oldtown white coffee", "secret recipe", "marrybrown", "llaollao", "costa coffee", "caribou coffee", "dome",
+];
+const compact = (s: string) => nameKey(s).replace(/ /g, "");
+const BIG_CHAIN_KEYS = [...new Set(BIG_CHAINS.map(compact))];
+const NON_FNB_NAME = /\b(universitas|university|institut|institute|politeknik|sekolah|school|kampus|campus|rumah sakit|hospital|rsud|kantin|canteen|masjid|gereja|kantor|office|bank|apotek|pharmacy|spbu|stasiun|bandara|airport)\b/i;
+
+/** Short chain keys must match exactly ("aw", "cfc"); longer ones also match as a prefix ("jcodonutscoffee", "mixueicecreamandtea"). */
+function isBigChain(value: string): boolean {
+  const key = compact(value);
+  return Boolean(key) && BIG_CHAIN_KEYS.some(chain => key === chain || (chain.length >= 5 && key.startsWith(chain)));
+}
+
+export function isExcludedCandidate(name: string, brands: Iterable<string> = []): boolean {
+  if (NON_FNB_NAME.test(name) || isBigChain(name)) return true;
+  for (const b of brands) if (isBigChain(b)) return true;
+  return false;
 }
 
 function rank(list: Candidate[]): Candidate[] {
