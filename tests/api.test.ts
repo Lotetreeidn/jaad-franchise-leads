@@ -253,3 +253,18 @@ test("dashboard summarises the funnel", async () => {
   assert.equal(res.data.gmailConfigured, false);
   assert.equal(res.data.settings.outreach_enabled, false);
 });
+
+test("owner WhatsApp number is normalised, signed into emails and offered on the thank-you page", async () => {
+  const { w, kopi } = await discoveredAndVerified();
+  await w.api("PATCH", "/api/settings", { profile: { sender_name: "Rina", pitch_id: "JAAD Cafe adalah kafe kopi.", whatsapp_number: "0811-0000-0000" } });
+  const s = await w.api("GET", "/api/settings");
+  assert.equal(s.data.profile.whatsapp_number, "+6281100000000");
+  const draft = await w.api("POST", `/api/leads/${kopi.id}/drafts`, { channel: "EMAIL" });
+  assert.match(draft.data.body, /WhatsApp: \+6281100000000/);
+  const { renderApply } = await import("../src/apply.ts");
+  const pastPage = await (await renderApply(new Request(`${ORIGIN}/apply`), w.env, Date.now() - 10_000)).text();
+  const ts = /name="ts" value="(\d+)"/.exec(pastPage)![1];
+  const sig = /name="sig" value="([a-f0-9]+)"/.exec(pastPage)![1];
+  const res = await w.api("POST", "/apply", formBody({ ts, sig, company: "Usaha Baru", contact_name: "A", email: "a@usahabaru.example", country: "ID", partner_type: "FNB_OPERATOR", consent: "yes" }), { auth: false, headers: { "content-type": "application/x-www-form-urlencoded" } });
+  assert.match(res.data, /href="https:\/\/wa\.me\/6281100000000\?text=/);
+});

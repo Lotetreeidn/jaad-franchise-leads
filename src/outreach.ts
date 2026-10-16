@@ -77,7 +77,8 @@ export function composeMessage(lead: Pick<LeadRow, "name" | "segment" | "market"
   const greeting = lang === "id" ? `Halo tim ${company},` : `Dear ${company} team,`;
   const intro = lang === "id" ? `Perkenalkan, saya ${sender} dari ${profile.company_name}.` : `My name is ${sender} from ${profile.company_name}.`;
   const close = lang === "id" ? "Jika berminat, cukup balas email ini dan kami jadwalkan obrolan singkat." : "If this is of interest, simply reply to this email and we will arrange a short call.";
-  const sign = [lang === "id" ? "Salam," : "Best regards,", profile.sender_name, profile.company_name, profile.postal_address].filter(Boolean).join("\n");
+  const wa = profile.whatsapp_number ? `WhatsApp: ${profile.whatsapp_number}` : "";
+  const sign = [lang === "id" ? "Salam," : "Best regards,", profile.sender_name, profile.company_name, wa, profile.postal_address].filter(Boolean).join("\n");
   const optOut = lang === "id"
     ? 'Jika Anda tidak ingin menerima email dari kami lagi, balas dengan "STOP" dan kami tidak akan menghubungi Anda lagi.'
     : 'If you would rather not hear from us again, reply "STOP" and we will not contact you again.';

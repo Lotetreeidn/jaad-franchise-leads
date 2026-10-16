@@ -1,4 +1,5 @@
 import { addContact, insertLead } from "./leads.ts";
+import { readSettings } from "./settings.ts";
 import type { Env, Segment } from "./util.ts";
 import { activity, clientIp, HttpError, isSegment, newId, nowIso, rateLimit, sha256Hex, str } from "./util.ts";
 
@@ -20,7 +21,7 @@ const T = {
     company: "Nama perusahaan / usaha", contact: "Nama Anda", email: "Email", phone: "WhatsApp / telepon",
     country: "Negara", city: "Kota", type: "Anda adalah", capital: "Perkiraan modal", location: "Sudah punya lokasi?",
     message: "Pesan (opsional)", consent: "Saya setuju data ini disimpan dan dipakai JAAD Cafe untuk menghubungi saya terkait kemitraan.",
-    submit: "Kirim pendaftaran", thanks: "Terima kasih! Pendaftaran Anda sudah kami terima. Tim kami akan menghubungi Anda.",
+    submit: "Kirim pendaftaran", chat: "Chat WhatsApp dengan tim kami", chatText: "Halo, saya baru saja mendaftar sebagai calon mitra franchise JAAD Cafe.", thanks: "Terima kasih! Pendaftaran Anda sudah kami terima. Tim kami akan menghubungi Anda.",
     error: "Pendaftaran belum bisa dikirim. Mohon periksa isian dan coba lagi.", slow: "Terlalu banyak percobaan. Coba lagi nanti.",
     types: { FNB_OPERATOR: "Pengusaha F&B / pemilik kafe atau resto", MASTER_FRANCHISE: "Investor / grup usaha (multi-outlet atau wilayah)", PROPERTY_OWNER: "Pemilik / pengelola lokasi atau properti" },
     capitals: ["< Rp 250 juta", "Rp 250 - 500 juta", "Rp 500 juta - 1 miliar", "> Rp 1 miliar", "Belum tahu"],
@@ -33,7 +34,7 @@ const T = {
     company: "Company name", contact: "Your name", email: "Email", phone: "WhatsApp / phone",
     country: "Country (2-letter code, e.g. MY)", city: "City", type: "You are", capital: "Estimated budget", location: "Do you have a location?",
     message: "Message (optional)", consent: "I agree that JAAD Cafe stores this data and uses it to contact me about a partnership.",
-    submit: "Submit application", thanks: "Thank you! We have received your application and our team will contact you.",
+    submit: "Submit application", chat: "Chat with our team on WhatsApp", chatText: "Hello, I have just applied to become a JAAD Cafe franchise partner.", thanks: "Thank you! We have received your application and our team will contact you.",
     error: "We could not submit your application. Please check the form and try again.", slow: "Too many attempts. Please try again later.",
     types: { FNB_OPERATOR: "F&B operator / cafe or restaurant owner", MASTER_FRANCHISE: "Investor / business group (multi-unit or master franchise)", PROPERTY_OWNER: "Property or location owner / manager" },
     capitals: ["< USD 50k", "USD 50k - 150k", "USD 150k - 500k", "> USD 500k", "Not sure yet"],
@@ -130,5 +131,12 @@ export async function submitApply(request: Request, env: Env, now = Date.now()):
     if (error instanceof HttpError) return fail(lang, 400, t.error);
     throw error;
   }
-  return page(lang, `<p class="ok">${esc(t.thanks)}</p>`);
+  return thanks(env, lang);
+}
+
+async function thanks(env: Env, lang: Lang): Promise<Response> {
+  const t = T[lang];
+  const number = (await readSettings(env.DB)).profile.whatsapp_number.replace(/\D/g, "");
+  const chat = number ? `<p><a class="wa" href="https://wa.me/${number}?text=${encodeURIComponent(t.chatText)}" rel="noopener">${esc(t.chat)}</a></p>` : "";
+  return page(lang, `<p class="ok">${esc(t.thanks)}</p>${chat}`);
 }

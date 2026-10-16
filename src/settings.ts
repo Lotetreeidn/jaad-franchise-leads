@@ -1,4 +1,5 @@
 import { nowIso, str } from "./util.ts";
+import { normalizePhone } from "./verify.ts";
 
 /**
  * Owner-typed franchise profile. Nothing here is invented by the app: every field starts empty and
@@ -88,6 +89,7 @@ export async function writeSettings(db: D1Database, input: Record<string, unknow
     for (const key of Object.keys(EMPTY_PROFILE) as (keyof FranchiseProfile)[]) {
       if (typeof p[key] === "string") next.profile[key] = str(p[key], key.startsWith("pitch") ? 1500 : 300);
     }
+    if (next.profile.whatsapp_number) next.profile.whatsapp_number = normalizePhone(next.profile.whatsapp_number, "ID") || current.profile.whatsapp_number;
     for (const key of ["local_url", "global_url"] as const) {
       if (next.profile[key] && !/^https:\/\/[^\s]+$/i.test(next.profile[key])) next.profile[key] = current.profile[key];
     }
