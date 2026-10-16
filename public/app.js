@@ -11,6 +11,7 @@ const ERRORS = {
   gmail_not_configured: "Gmail belum dihubungkan (lihat README).", daily_cap_reached: "Batas email harian tercapai.", draft_not_approved: "Setujui draf dulu.",
   no_email_contact: "Lead ini belum punya email bisnis.", no_phone_contact: "Lead ini belum punya nomor WhatsApp/telepon.", contact_suppressed: "Kontak ini ada di daftar jangan-hubungi.",
   lead_closed: "Lead sudah ditutup / jangan dihubungi.", open_draft_exists: "Sudah ada draf yang belum selesai untuk channel ini.", quality_below_minimum: "Skor lead di bawah minimum untuk outreach (lihat Pengaturan).",
+  database_not_bound: "Database D1 belum di-bind dengan nama DB (lihat panduan deploy).",
   discovery_failed: "Pencarian gagal. Coba kota lain atau ulangi nanti.", invalid_city: "Nama kota belum diisi.", invalid_country: "Kode negara harus 2 huruf (mis. ID, MY).",
 };
 
@@ -82,7 +83,7 @@ async function logout(e) {
   renderLogin();
 }
 
-function renderLogin(configured = true) {
+function renderLogin(configured = true, database = true) {
   const pw = h("input", { type: "password", autocomplete: "current-password", required: true });
   const form = h("form", { class: "card stack", onsubmit: async e => {
     e.preventDefault();
@@ -90,7 +91,8 @@ function renderLogin(configured = true) {
     if (ok) { location.hash = "#/"; router(); }
   } },
   h("h1", {}, "JAAD Franchise Leads"), h("p", { class: "muted" }, "Masuk sebagai operator."),
-  configured ? null : h("p", { class: "note" }, "Password operator belum di-set. Jalankan `npx wrangler secret put OPERATOR_PASSWORD` dan `SESSION_SECRET` (lihat README)."),
+  database ? null : h("p", { class: "note" }, "Database belum terhubung: di Cloudflare tambahkan binding D1 bernama DB, lalu deploy ulang."),
+  configured ? null : h("p", { class: "note" }, "Password operator belum di-set: tambahkan secret OPERATOR_PASSWORD (min. 10 karakter) dan SESSION_SECRET (min. 32 karakter), lalu deploy ulang."),
   h("label", {}, "Password", pw), h("button", { class: "primary", type: "submit" }, "Masuk"));
   $app.replaceChildren(h("div", { class: "login" }, form));
   pw.focus();
@@ -323,6 +325,12 @@ async function viewInquiries() {
 }
 
 // ---------- settings ----------
+// Suggested pitch built from search-engine summaries of jaadcafe.com (the site itself could not be fetched).
+// It is only inserted when the owner clicks the button and saves; nothing is sent from it automatically.
+const PITCH_SUGGESTION = {
+  id: "JAAD Cafe adalah jaringan kafe kopi di bawah PT Jaad Food Indonesia dengan rantai pasok kopi sendiri, dari hulu ke hilir. Saat ini ada 4 outlet di Bandung, Jatinangor, dan Malaysia. Mitra franchise mendapat pasokan kopi langsung dari kami, pelatihan, standar operasional, dan dukungan tim marketing.",
+  en: "JAAD Cafe is a coffee cafe network run by PT Jaad Food Indonesia with its own coffee supply chain, from farm to cup. We currently operate 4 outlets in Bandung, Jatinangor and Malaysia. Franchise partners are supplied directly by us and receive training, operating standards and marketing support.",
+};
 async function viewSettings() {
   const [s, sup] = await Promise.all([api("GET", "/api/settings"), api("GET", "/api/suppression")]);
   const p = s.profile;
@@ -335,7 +343,16 @@ async function viewSettings() {
   } },
   field("sender_name", "Nama pengirim"), field("sender_title", "Jabatan"), field("company_name", "Nama brand"), field("whatsapp_number", "Nomor WhatsApp kantor"),
   field("local_url", "Link info franchise lokal", { placeholder: "https://jaadcafe.com/…" }), field("global_url", "Link info franchise global", { placeholder: "https://global.jaadcafe.com/…" }),
-  field("pitch_id", "Pitch singkat (Bahasa Indonesia)", { rows: 4 }), field("pitch_en", "Pitch singkat (English)", { rows: 4 }), field("postal_address", "Alamat kantor (untuk footer email)", { rows: 2 }),
+  field("pitch_id", "Pitch singkat (Bahasa Indonesia)", { rows: 4 }), field("pitch_en", "Pitch singkat (English)", { rows: 4 }),
+  h("div", { class: "wide note info" },
+    h("b", {}, "Teks saran (dari ringkasan hasil pencarian jaadcafe.com, cek dulu sebelum dipakai): "),
+    h("div", {}, PITCH_SUGGESTION.id), h("div", {}, PITCH_SUGGESTION.en),
+    h("button", { type: "button", class: "small", onclick: () => {
+      profileForm.querySelector('[data-key="pitch_id"]').value = PITCH_SUGGESTION.id;
+      profileForm.querySelector('[data-key="pitch_en"]').value = PITCH_SUGGESTION.en;
+      toast("Teks saran dimasukkan. Periksa, lalu klik Simpan profil.");
+    } }, "Pakai teks saran")),
+  field("postal_address", "Alamat kantor (untuk footer email)", { rows: 2 }),
   h("p", { class: "wide note info" }, "Pitch dipakai apa adanya di setiap pesan. Tulis hanya fakta resmi dari jaadcafe.com / global.jaadcafe.com. Jangan cantumkan angka investasi, royalti, atau ROI kecuali sudah disetujui."),
   h("div", { class: "wide" }, h("button", { class: "primary", type: "submit" }, "Simpan profil")));
 
@@ -380,7 +397,7 @@ async function router() {
 
 window.addEventListener("hashchange", router);
 (async () => {
-  const s = await fetch("/api/session").then(r => r.json()).catch(() => ({ authenticated: false, configured: false }));
-  if (!s.authenticated) renderLogin(s.configured);
+  const s = await fetch("/api/session").then(r => r.json()).catch(() => ({ authenticated: false, configured: false, database: false }));
+  if (!s.authenticated) renderLogin(s.configured, s.database !== false);
   else router();
 })();

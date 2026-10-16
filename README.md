@@ -28,6 +28,10 @@ Semua otomatisasi (cron cari leads, cron cek website, kirim email) **default OFF
 
 ## Deploy ke Cloudflare (gratis)
 
+**Tanpa terminal:** ikuti [DEPLOY_DASHBOARD.md](DEPLOY_DASHBOARD.md). Buat database D1, drag `jaad-franchise-pages.zip` ke Cloudflare Pages, lalu isi 2 secret. Zip dibuat dengan `npm run build:pages`.
+
+**Dengan terminal (Workers + cron bawaan):**
+
 Perlu: akun Cloudflare gratis dan Node.js 20 ke atas.
 
 ```bash

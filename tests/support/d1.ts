@@ -45,10 +45,10 @@ class Stmt {
   }
 }
 
-export function createD1() {
+export function createD1(applyMigrations = true) {
   const db = new DatabaseSync(":memory:");
   const dir = join(import.meta.dirname, "..", "..", "migrations");
-  for (const file of readdirSync(dir).filter(f => f.endsWith(".sql")).sort()) db.exec(readFileSync(join(dir, file), "utf8"));
+  if (applyMigrations) for (const file of readdirSync(dir).filter(f => f.endsWith(".sql")).sort()) db.exec(readFileSync(join(dir, file), "utf8"));
   const d1 = {
     prepare: (sql: string) => new Stmt(db, sql),
     async batch(stmts: Stmt[]) {

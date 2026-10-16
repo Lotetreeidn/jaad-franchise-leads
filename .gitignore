@@ -5,3 +5,5 @@ dist/
 .dev.vars.*
 .env*
 !.dev.vars.example
+dist-pages/
+jaad-franchise-pages.zip

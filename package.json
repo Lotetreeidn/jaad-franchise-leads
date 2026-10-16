@@ -10,11 +10,15 @@
     "build": "wrangler deploy --dry-run --outdir dist",
     "db:migrate:local": "wrangler d1 migrations apply jaad-franchise --local",
     "db:migrate:remote": "wrangler d1 migrations apply jaad-franchise --remote",
-    "deploy": "wrangler deploy"
+    "deploy": "wrangler deploy",
+    "build:pages": "node scripts/gen-migrations.mjs && node scripts/build-pages.mjs",
+    "pretest": "node scripts/gen-migrations.mjs",
+    "predeploy": "node scripts/gen-migrations.mjs"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20261016.1",
     "@types/node": "^26.6.5",
+    "esbuild": "0.28.2",
     "typescript": "^7.0.2",
     "wrangler": "^4.151.0"
   }

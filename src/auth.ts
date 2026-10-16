@@ -13,7 +13,7 @@ async function hmac(secret: string, data: string): Promise<string> {
   return btoa(String.fromCharCode(...new Uint8Array(sig))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
-function timingSafeEqual(a: string, b: string): boolean {
+export function timingSafeEqual(a: string, b: string): boolean {
   const ab = enc.encode(a);
   const bb = enc.encode(b);
   let diff = ab.length ^ bb.length;

@@ -1,7 +1,8 @@
 import { renderApply, submitApply } from "./apply.ts";
-import { assertSameOrigin, authConfigured, hasSession, login, logoutCookie } from "./auth.ts";
+import { assertSameOrigin, authConfigured, hasSession, login, logoutCookie, timingSafeEqual } from "./auth.ts";
 import { addContact, exportCsv, importCsv, insertLead, leadDetail, listLeads, runDiscovery, updateLead, verifyPending } from "./leads.ts";
 import { addSuppression, approveDraft, cancelDraft, createDraft, editDraft, emailsSentLast24h, gmailConfigured, listDrafts, markWhatsappSent, sendEmailDraft } from "./outreach.ts";
+import { ensureSchema } from "./schema.ts";
 import { readSettings, writeSettings } from "./settings.ts";
 import type { Env, Segment } from "./util.ts";
 import { HttpError, isSegment, json, newId, nowIso, readJson, str } from "./util.ts";
@@ -17,7 +18,7 @@ function route(method: string, path: string, handler: Handler, isPublic = false)
 }
 
 // ---------- auth ----------
-route("GET", "/api/session", async ({ request, env }) => json({ authenticated: await hasSession(request, env), configured: authConfigured(env) }), true);
+route("GET", "/api/session", async ({ request, env }) => json({ authenticated: await hasSession(request, env), configured: authConfigured(env), database: true }), true);
 route("POST", "/api/login", async ({ request, env }) => {
   assertSameOrigin(request);
   const body = await readJson(request, 2000);
@@ -140,6 +141,14 @@ route("GET", "/api/inquiries", async ({ env }) => json((await env.DB.prepare(
 route("GET", "/api/settings", async ({ env }) => json({ ...(await readSettings(env.DB)), gmailConfigured: gmailConfigured(env) }));
 route("PATCH", "/api/settings", async ({ request, env }) => json(await writeSettings(env.DB, await readJson(request))));
 
+// ---------- cron for Cloudflare Pages (no native cron there) ----------
+// A tiny separate Worker (cron-worker/worker.js) calls this on a schedule with the shared CRON_SECRET.
+route("POST", "/api/cron", async ({ request, env }) => {
+  const token = (request.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
+  if (!env.CRON_SECRET || env.CRON_SECRET.length < 32 || !timingSafeEqual(token, env.CRON_SECRET)) throw new HttpError(401, "invalid_cron_secret");
+  return json(await scheduled(env));
+}, true);
+
 // ---------- public application form ----------
 route("GET", "/apply", async ({ request, env }) => renderApply(request, env), true);
 route("POST", "/apply", async ({ request, env }) => submitApply(request, env), true);
@@ -151,6 +160,11 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   const isApi = url.pathname.startsWith("/api/") || url.pathname === "/apply";
   if (!isApi) return env.ASSETS ? env.ASSETS.fetch(request) : new Response("Not found", { status: 404 });
   try {
+    if (!env.DB) {
+      if (url.pathname === "/api/session") return json({ authenticated: false, configured: authConfigured(env), database: false });
+      throw new HttpError(503, "database_not_bound");
+    }
+    await ensureSchema(env.DB);
     for (const r of routes) {
       if (r.method !== request.method) continue;
       const m = r.pattern.exec(url.pathname);
@@ -172,6 +186,7 @@ export async function handle(request: Request, env: Env): Promise<Response> {
 
 /** Cron: both jobs stay idle until the owner switches them on in Settings. */
 export async function scheduled(env: Env, now = Date.now()) {
+  await ensureSchema(env.DB);
   const settings = await readSettings(env.DB);
   const out: Record<string, unknown> = {};
   if (settings.auto_discovery_enabled) {

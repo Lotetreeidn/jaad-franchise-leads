@@ -9,6 +9,7 @@ export interface Env {
   GMAIL_CLIENT_SECRET?: string;
   GMAIL_REFRESH_TOKEN?: string;
   GMAIL_SENDER?: string;
+  CRON_SECRET?: string;
 }
 
 export const SEGMENTS = ["FNB_OPERATOR", "MASTER_FRANCHISE", "PROPERTY_OWNER"] as const;

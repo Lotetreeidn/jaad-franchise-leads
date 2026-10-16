@@ -3,6 +3,7 @@ import { test } from "node:test";
 import { candidatesFromOsm, overpassQuery } from "../src/discovery.ts";
 import { buildMime, composeMessage, draftProblems, missingProfileFields, pickEmail } from "../src/outreach.ts";
 import { scoreLead } from "../src/scoring.ts";
+import { splitStatements } from "../src/schema.ts";
 import { EMPTY_PROFILE } from "../src/settings.ts";
 import { domainOf, nameKey } from "../src/util.ts";
 import { extractFacts, normalizePhone, robotsAllows } from "../src/verify.ts";
@@ -120,4 +121,9 @@ test("email selection prefers partnership inboxes; MIME is base64 and header-saf
   const mime = Buffer.from(raw.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf8");
   assert.doesNotMatch(mime, /\r\nBcc:/);
   assert.match(mime, /Subject: =\?UTF-8\?B\?/);
+});
+
+test("migration SQL splits into executable statements without comments", () => {
+  const parts = splitStatements("-- c;\nCREATE TABLE a (x TEXT); -- trailing\nCREATE INDEX i ON a(x);\n");
+  assert.deepEqual(parts, ["CREATE TABLE a (x TEXT)", "CREATE INDEX i ON a(x)"]);
 });

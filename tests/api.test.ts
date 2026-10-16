@@ -268,3 +268,28 @@ test("owner WhatsApp number is normalised, signed into emails and offered on the
   const res = await w.api("POST", "/apply", formBody({ ts, sig, company: "Usaha Baru", contact_name: "A", email: "a@usahabaru.example", country: "ID", partner_type: "FNB_OPERATOR", consent: "yes" }), { auth: false, headers: { "content-type": "application/x-www-form-urlencoded" } });
   assert.match(res.data, /href="https:\/\/wa\.me\/6281100000000\?text=/);
 });
+
+test("a fresh, empty D1 database gets its tables on the first request (dashboard-only deploy)", async () => {
+  const { createD1 } = await import("./support/d1.ts");
+  const { handle } = await import("../src/index.ts");
+  const { d1, raw } = createD1(false);
+  const env = { DB: d1, OPERATOR_PASSWORD: PASSWORD, SESSION_SECRET: "s".repeat(40) };
+  const res = await handle(new Request(`${ORIGIN}/api/session`), env);
+  assert.equal(res.status, 200);
+  const tables = (raw.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all() as { name: string }[]).map(t => t.name);
+  for (const t of ["leads", "contacts", "drafts", "inquiries", "settings", "schema_migrations"]) assert.ok(tables.includes(t), t);
+  assert.equal((raw.prepare("SELECT COUNT(*) AS n FROM schema_migrations").get() as { n: number }).n, 1);
+  const noDb = await handle(new Request(`${ORIGIN}/api/session`), { OPERATOR_PASSWORD: PASSWORD } as never);
+  assert.equal((await noDb.json() as { database: boolean }).database, false);
+});
+
+test("the Pages cron endpoint needs the shared secret and then runs the opt-in jobs", async () => {
+  const w = await world({ CRON_SECRET: "c".repeat(40) });
+  assert.equal((await w.api("POST", "/api/cron", undefined, { auth: false })).status, 401);
+  assert.equal((await w.api("POST", "/api/cron", undefined, { auth: false, headers: { authorization: `Bearer ${"x".repeat(40)}` } })).status, 401);
+  const ok = await w.api("POST", "/api/cron", undefined, { auth: false, headers: { authorization: `Bearer ${"c".repeat(40)}` } });
+  assert.equal(ok.status, 200);
+  assert.deepEqual(ok.data, {}, "jobs stay off until enabled in Settings");
+  const noSecret = await world();
+  assert.equal((await noSecret.api("POST", "/api/cron", undefined, { auth: false, headers: { authorization: "Bearer " } })).status, 401);
+});
