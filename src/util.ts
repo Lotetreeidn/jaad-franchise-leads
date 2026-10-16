@@ -10,6 +10,7 @@ export interface Env {
   GMAIL_REFRESH_TOKEN?: string;
   GMAIL_SENDER?: string;
   CRON_SECRET?: string;
+  EXPORT_TOKEN?: string;
 }
 
 export const SEGMENTS = ["FNB_OPERATOR", "MASTER_FRANCHISE", "PROPERTY_OWNER"] as const;

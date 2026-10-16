@@ -60,9 +60,15 @@ route("GET", "/api/leads", async ({ env, url }) => {
     minQuality: Number(q.get("minQuality")) || undefined, limit: Number(q.get("limit")) || undefined, offset: Number(q.get("offset")) || undefined,
   }));
 });
-route("GET", "/api/leads/export.csv", async ({ env }) => new Response(await exportCsv(env.DB), {
-  headers: { "content-type": "text/csv; charset=utf-8", "content-disposition": `attachment; filename="jaad-franchise-leads-${nowIso().slice(0, 10)}.csv"`, "cache-control": "no-store" },
-}));
+// Readable by the operator session, or by a reporting script holding EXPORT_TOKEN (read-only, export only).
+route("GET", "/api/leads/export.csv", async ({ request, env }) => {
+  const token = (request.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
+  const byToken = Boolean(env.EXPORT_TOKEN && env.EXPORT_TOKEN.length >= 32 && token && timingSafeEqual(token, env.EXPORT_TOKEN));
+  if (!byToken && !(await hasSession(request, env))) throw new HttpError(401, "login_required");
+  return new Response(await exportCsv(env.DB), {
+    headers: { "content-type": "text/csv; charset=utf-8", "content-disposition": `attachment; filename="jaad-franchise-leads-${nowIso().slice(0, 10)}.csv"`, "cache-control": "no-store" },
+  });
+}, true);
 route("POST", "/api/leads", async ({ request, env }) => {
   const body = await readJson(request);
   if (!isSegment(body.segment)) throw new HttpError(400, "invalid_segment");

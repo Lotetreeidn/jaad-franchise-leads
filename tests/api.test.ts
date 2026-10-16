@@ -307,3 +307,13 @@ test("researched leads keep outlet and brand counts from CSV import and manual e
   await w.api("POST", "/api/leads", { segment: "FNB_OPERATOR", name: "Kopi Riset", country: "ID", outlet_count: 7, brand_count: 1 });
   assert.equal(w.row("SELECT outlet_count FROM leads WHERE name = 'Kopi Riset'").outlet_count, 7);
 });
+
+test("lead export is readable with EXPORT_TOKEN or a session, never anonymously", async () => {
+  const w = await world();
+  w.env.EXPORT_TOKEN = "t".repeat(40);
+  assert.equal((await w.api("GET", "/api/leads/export.csv", undefined, { auth: false })).status, 401);
+  assert.equal((await w.api("GET", "/api/leads/export.csv", undefined, { auth: false, headers: { authorization: "Bearer wrong" } })).status, 401);
+  const ok = await w.api("GET", "/api/leads/export.csv", undefined, { auth: false, headers: { authorization: `Bearer ${"t".repeat(40)}` } });
+  assert.equal(ok.status, 200);
+  assert.equal((await w.api("POST", "/api/leads", { segment: "FNB_OPERATOR", name: "X", country: "ID" }, { auth: false, headers: { authorization: `Bearer ${"t".repeat(40)}` } })).status, 401);
+});

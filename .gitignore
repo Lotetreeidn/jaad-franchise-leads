@@ -7,3 +7,6 @@ dist/
 !.dev.vars.example
 dist-pages/
 jaad-franchise-pages.zip
+research/
+*.xlsx
+jaad-franchise-prospects-*.csv
